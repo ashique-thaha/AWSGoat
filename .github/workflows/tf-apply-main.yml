@@ -38,14 +38,6 @@ jobs:
         ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
         echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
 
-    # Remove the check for previous deployment if you want to allow overwriting
-    # - name: Check previous AWSGoat Deployment
-    #   id: check
-    #   run: |
-    #     echo "Checking previous AWSGoat deployment..."
-    #     aws s3api head-object --bucket do-not-delete-awsgoat-state-files-${{ env.ACCOUNT_ID }} --key terraform.tfstate || echo "No previous deployment found."
-    #   continue-on-error: true
-
     - name: Terraform Init
       run: |
         echo "Initializing Terraform..."
@@ -53,22 +45,14 @@ jobs:
         terraform init -input=false
       continue-on-error: true  # Allow for debugging initialization errors
 
-    - name: Install boto3
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-      
-    - name: Install boto3 Python package
-      run: |
-        echo "Installing boto3..."
-        pip install boto3
-
     - name: Terraform Plan
       id: plan
       run: |
         echo "Running Terraform plan..."
         cd modules/${{ github.event.inputs.module }}
         terraform plan -input=false
+        terraform plan -out=tfplan
+        terraform show tfplan
       continue-on-error: true  # Allow Terraform plan failure for debugging
 
     - name: Terraform Plan Status
@@ -82,7 +66,6 @@ jobs:
         echo "Applying Terraform changes..."
         cd modules/${{ github.event.inputs.module }}
         terraform apply -auto-approve -input=false
-        # Verify if terraform.tfstate is created after apply
         if [ ! -f "./terraform.tfstate" ]; then
           echo "Error: terraform.tfstate was not created after apply."
           exit 1
