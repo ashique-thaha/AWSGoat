@@ -94,13 +94,21 @@ jobs:
         echo "Applying Terraform changes..."
         cd modules/${{ github.event.inputs.module }}
         terraform apply -auto-approve -input=false
-      continue-on-error: true  # Allow Terraform apply failure for debugging
+        # Verify if terraform.tfstate is created after apply
+        if [ ! -f "./terraform.tfstate" ]; then
+          echo "Error: terraform.tfstate was not created after apply."
+          exit 1
+        fi
 
     - name: Copy terraform.tfstate to S3 bucket
       if: always()
       run: |
         echo "Copying terraform.tfstate file to S3..."
         cd modules/${{ github.event.inputs.module }}
+        if [ ! -f "./terraform.tfstate" ]; then
+          echo "Error: terraform.tfstate not found. Skipping S3 upload."
+          exit 1
+        fi
         aws s3 cp ./terraform.tfstate s3://do-not-delete-awsgoat-state-files-${{ env.ACCOUNT_ID }}/terraform.tfstate
 
     - name: Output Application URL
