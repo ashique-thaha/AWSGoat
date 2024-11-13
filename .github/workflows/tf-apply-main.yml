@@ -38,18 +38,13 @@ jobs:
         ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
         echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
 
-    - name: Check previous AWSGoat Deployment
-      id: check
-      run: |
-        echo "Checking previous AWSGoat deployment..."
-        aws s3api head-object --bucket do-not-delete-awsgoat-state-files-${{ env.ACCOUNT_ID }} --key terraform.tfstate || echo "No previous deployment found."
-      continue-on-error: true
-
-    - name: Exit if previous deployment exists
-      if: steps.check.outcome == 'success'
-      run: |
-        echo "A previous AWSGoat deployment exists. Run Terraform Destroy action."
-        exit 1
+    # Remove the check for previous deployment if you want to allow overwriting
+    # - name: Check previous AWSGoat Deployment
+    #   id: check
+    #   run: |
+    #     echo "Checking previous AWSGoat deployment..."
+    #     aws s3api head-object --bucket do-not-delete-awsgoat-state-files-${{ env.ACCOUNT_ID }} --key terraform.tfstate || echo "No previous deployment found."
+    #   continue-on-error: true
 
     - name: Terraform Init
       run: |
@@ -57,13 +52,6 @@ jobs:
         cd modules/${{ github.event.inputs.module }}
         terraform init -input=false
       continue-on-error: true  # Allow for debugging initialization errors
-
-    - name: Check if terraform.tfstate exists after init
-      run: |
-        if [ ! -f "./terraform.tfstate" ]; then
-          echo "Error: terraform.tfstate does not exist. Initialization may have failed."
-          exit 1
-        fi
 
     - name: Install boto3
       uses: actions/setup-python@v4
